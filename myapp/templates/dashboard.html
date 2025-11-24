@@ -1,0 +1,36 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard IoT DHT11</title>
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+</head>
+<body>
+
+<h1>Dashboard Température & Humidité (DHT11)</h1>
+
+<div class="cards">
+
+    <div class="card">
+        <h3>Température</h3>
+        <p id="temp" class="value">-- °C</p>
+        <p class="time">Mis à jour : <span id="time_temp">--</span></p>
+        <a href="{% url 'graph_temp' %}" class="btn">Voir graphe température</a>
+    </div>
+
+    <div class="card">
+        <h3>Humidité</h3>
+        <p id="hum" class="value">-- %</p>
+        <p class="time">Mis à jour : <span id="time_hum">--</span></p>
+        <a href="{% url 'graph_hum' %}" class="btn">Voir graphe humidité</a>
+    </div>
+
+</div>
+
+<p id="status"></p>
+
+<script src="{% static 'js/dashboard.js' %}"></script>
+</body>
+</html>
