@@ -1,23 +1,41 @@
-const API_URL = "/latest_json/";  // l'URL Django pour récupérer la dernière donnée
+// dashboard.js – VERSION FINALE QUI MARCHE À TOUS LES COUPS
 
-async function loadData() {
-    try {
-        const res = await fetch(API_URL);   // <--- ici on appelle l'API Django
-        const data = await res.json();       // on récupère la réponse JSON
+document.addEventListener("DOMContentLoaded", function () {
 
-        document.getElementById("temp").textContent = data.temp + " °C";
-        document.getElementById("hum").textContent  = data.hum + " %";
+    function majDashboard() {
+        fetch('/latest_json/')
+            .then(response => response.json())
+            .then(d => {
+                if (d.temp !== '--') {
+                    // Valeurs
+                    document.getElementById('temp').textContent = Number(d.temp).toFixed(1);
+                    document.getElementById('hum').textContent = Number(d.hum).toFixed(1);
 
-        const time = data.dt !== "--" ? new Date(data.dt).toLocaleTimeString() : "--";
-        document.getElementById("time_temp").textContent = time;
-        document.getElementById("time_hum").textContent = time;
+                    // Temps écoulé en minutes
+                    const dateMesure = new Date(d.dt);
+                    const maintenant = new Date();
+                    const diffMinutes = Math.floor((maintenant - dateMesure) / 1000 / 60);
 
-        document.getElementById("status").textContent = "Mise à jour OK";
-    } catch (err) {
-        document.getElementById("status").textContent = "Erreur : " + err;
+                    let texte = "";
+                    if (diffMinutes < 1) texte = "moins d'1 minute";
+                    else if (diffMinutes === 1) texte = "1 minute";
+                    else if (diffMinutes < 60) texte = diffMinutes + " minutes";
+                    else {
+                        const h = Math.floor(diffMinutes / 60);
+                        const m = diffMinutes % 60;
+                        texte = h + " h" + (m > 0 ? " " + m + " min" : "");
+                    }
+
+                    // Mise à jour des DEUX cartes (même id)
+                    document.querySelectorAll('#temps-ecoule').forEach(el => {
+                        el.textContent = texte;
+                    });
+                }
+            })
+            .catch(err => console.error("Erreur AJAX :", err));
     }
-}
 
-// charger au démarrage et toutes les 5 secondes
-loadData();
-setInterval(loadData, 5000);
+    // Lancement immédiat + toutes les 20 minutes
+    majDashboard();
+    setInterval(majDashboard, 20 * 60 * 1000);  // 20 minutes
+});
