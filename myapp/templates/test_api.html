@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test API DHT11</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 40px; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        input[type=number] { width: 100%; padding: 10px; margin: 10px 0; font-size: 18px; }
+        button { padding: 12px 20px; font-size: 18px; background: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        #result { margin-top: 20px; padding: 15px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Test de l'API DHT11</h2>
+        <p>Envoie une mesure manuelle pour tester les alertes (plage normale : 2°C à 8°C)</p>
+
+        <form id="testForm">
+            <label>Température (°C)</label>
+            <input type="number" step="0.1" id="temp" placeholder="ex: 9.5" required>
+
+            <label>Humidité (%)</label>
+            <input type="number" step="0.1" id="hum" placeholder="ex: 65" required>
+
+            <button type="submit">Envoyer vers l'API</button>
+        </form>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        document.getElementById('testForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const temp = document.getElementById('temp').value;
+            const hum = document.getElementById('hum').value;
+            const resultDiv = document.getElementById('result');
+
+            resultDiv.textContent = "Envoi en cours...";
+            resultDiv.className = "";
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/dht11/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ temp: parseFloat(temp), hum: parseFloat(hum) })
+                });
+
+                const data = await response.json();
+
+                if (response.ok || response.status === 201) {
+                    resultDiv.textContent = `Succès ! Mesure enregistrée. Température : ${temp}°C → ${temp < 2 || temp > 8 ? 'ALERTE DEVRAIT ÊTRE ENVOYÉE !' : 'Tout est normal'}`;
+                    resultDiv.className = "success";
+                    // Rafraîchir le dashboard dans 2 secondes
+                    setTimeout(() => window.open('http://127.0.0.1:8000/', '_blank'), 2000);
+                } else {
+                    resultDiv.textContent = `Erreur : ${JSON.stringify(data)}`;
+                    resultDiv.className = "error";
+                }
+            } catch (err) {
+                resultDiv.textContent = `Erreur réseau : ${err.message}`;
+                resultDiv.className = "error";
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,21 +1,18 @@
-# myapp/api.py
-
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import generics   # ←←← CETTE LIGNE MANQUAIT !!!
-from django.core.mail import send_mail
-from django.conf import settings
-from .models import Dht11, Incident
-from .serializers import DHT11serialize
-from .utils import send_telegram
+from rest_framework import generics
 from django.utils import timezone
 
+from .models import Dht11, Incident, Operateur, AccuseReception
+from .serializers import DHT11serialize
+from .utils import envoyer_alerte_email
 
-@api_view(['GET'])
-def Dlist(request):
-    data_all = Dht11.objects.all().order_by('-dt')
-    serializer = DHT11serialize(data_all, many=True)
-    return Response({"data": serializer.data})
+from django.http import JsonResponse
+
+# compteur_alerte → niveau opérateur
+SEUILS_ESCALADE = {
+    1: 1,   # dès la 1ère alerte → niveau 1
+    4: 2,   # à 4 alertes → niveau 2
+    7: 3,   # à 7 alertes → niveau 3
+}
 
 
 class Dhtviews(generics.CreateAPIView):
@@ -25,35 +22,51 @@ class Dhtviews(generics.CreateAPIView):
     def perform_create(self, serializer):
         instance = serializer.save()
         temp = instance.temp
+        hum = instance.hum
 
-        # === SYSTÈME D'INCIDENTS COMME TU VEUX ===
-        incident_actif = Incident.objects.filter(resolu=False).first()
+        print(f"[DHT11] Mesure reçue → Temp={temp}°C | Hum={hum}%")
 
-        # Température normale : 2°C < T < 8°C
-        if 2 <= temp <= 8:
-            if incident_actif:
-                incident_actif.date_fin = timezone.now()
-                incident_actif.resolu = True
-                incident_actif.save()
-        else:
-            # Température anormale → incident
-            if not incident_actif:
-                incident_actif = Incident.objects.create(
-                    temperature_max=temp,
-                    compteur_alerte=1
-                )
-                send_telegram("ALERTE NIVEAU 1 : Température hors plage (2-8°C) ! Opérateur 1 requis.")
+        # 🔴 TEMPÉRATURE HORS PLAGE
+        if temp < 2 or temp > 8:
+            incident = Incident.objects.filter(resolu=False).first()
+
+            # incident existant
+            if incident:
+                incident.compteur_alerte += 1
+                incident.temperature_max = max(incident.temperature_max, temp)
+                incident.save()
+
+            # nouvel incident
             else:
-                incident_actif.compteur_alerte += 1
-                incident_actif.temperature_max = max(incident_actif.temperature_max, temp)
-                incident_actif.save()
+                incident = Incident.objects.create(
+                    compteur_alerte=1,
+                    temperature_max=temp,
+                    resolu=False
+                )
 
-                compteur = incident_actif.compteur_alerte
-                if compteur == 4:
-                    send_telegram("ALERTE NIVEAU 2 : Problème persistant ! Opérateur 2 requis.")
-                elif compteur == 7:
-                    send_telegram("ALERTE CRITIQUE : Opérateur 3 requis IMMÉDIATEMENT !")
+            # 🔔 Escalade selon compteur
+            niveau = SEUILS_ESCALADE.get(incident.compteur_alerte)
 
-                # Incident > 10 heures ?
-                if (timezone.now() - incident_actif.date_debut).total_seconds() > 10 * 3600:
-                    send_telegram("INCIDENT GRAVE > 10 HEURES ! Intervention urgente !")
+            if niveau:
+                operateurs = Operateur.objects.filter(niveau=niveau)
+
+                for operateur in operateurs:
+                    AccuseReception.objects.get_or_create(
+                        incident=incident,
+                        operateur=operateur
+                    )
+
+                # 📧 ENVOI EMAIL (APRES création des accusés)
+                envoyer_alerte_email(incident)
+
+        # 🟢 TEMPÉRATURE NORMALE → CLÔTURE INCIDENT
+        else:
+            incident = Incident.objects.filter(resolu=False).first()
+            if incident:
+                incident.resolu = True
+                incident.date_fin = timezone.now()
+                incident.save()
+
+
+
+

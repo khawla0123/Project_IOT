@@ -121,8 +121,23 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+LOGIN_REDIRECT_URL = "/profile/"
+LOGOUT_REDIRECT_URL = "/accounts/login/"
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# ================= EMAIL CONFIG =================
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = 'khawlajam18@gmail.com'  # email expéditeur
+EMAIL_HOST_PASSWORD = 'dyoc mssf mjog ekxh'  # mot de passe application
+
+DEFAULT_FROM_EMAIL = 'DHT11 Alert <khawlajam18@gmail.com>'

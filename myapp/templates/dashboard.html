@@ -3,67 +3,172 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Température & Humidité (DHT11)</title>
+    <title>Dashboard DHT11</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 </head>
+
 <body class="bg-light">
-    <div class="container py-5">
-        <h2 class="text-center mb-5 fw-bold text-primary">Dashboard Température & Humidité (DHT11)</h2>
 
-        <div class="row g-5">
-            <!-- Température -->
-            <div class="col-md-6">
-                <div class="card shadow-lg border-0 rounded-4">
-                    <div class="card-header bg-primary text-white text-center py-3 rounded-top-4">
-                        <h4 class="mb-0">Température</h4>
+<!-- BARRE HAUT -->
+<nav class="navbar navbar-light bg-white shadow-sm px-4">
+    <span class="navbar-brand fw-bold text-primary">
+        🌡️ Dashboard DHT11
+    </span>
+
+    {% if user.is_authenticated %}
+        <span class="d-flex align-items-center">
+            👷 {{ user.username }}
+
+            <form method="post" action="{% url 'logout' %}" class="ms-2">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                    Déconnexion
+                </button>
+            </form>
+        </span>
+    {% else %}
+        <a href="{% url 'login' %}" class="btn btn-outline-primary btn-sm">
+            🔐 Login
+        </a>
+    {% endif %}
+</nav>
+
+
+<div class="container py-5">
+
+    <h2 class="text-center mb-5 text-primary fw-bold">
+        Température & Humidité
+    </h2>
+
+    <!-- TEMP + HUM -->
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card shadow text-center">
+                <div class="card-header bg-primary text-white">Température</div>
+                <div class="card-body">
+                    <h1>{{ dernier.temp|default:"--" }} °C</h1>
+                    <p class="text-muted">Il y a {{ dernier.dt|timesince }}</p>
+
+                <a href="{% url 'graph_temp' %}" class="btn btn-outline-primary btn-sm">
+                  📈 Voir graphe température
+</a>
                     </div>
-                    <div class="card-body text-center py-5">
-                        <h1 class="display-3 fw-bold" id="temp">--</h1>
-                     <p class="text-muted fs-5">Il y a <span id="temps-ecoule">--</span></p>
-                        <a href="{% url 'graph_temp' %}" class="btn btn-outline-primary btn-lg px-4">Voir graphe température</a>
-                    </div>
-                </div>
+
             </div>
+        </div>
 
-            <!-- Humidité -->
-            <div class="col-md-6">
-                <div class="card shadow-lg border-0 rounded-4">
-                    <div class="card-header bg-primary text-white text-center py-3 rounded-top-4">
-                        <h4 class="mb-0">Humidité</h4>
-                    </div>
-                    <div class="card-body text-center py-5">
-                        <h1 class="display-3 fw-bold" id="hum">--</h1>
-               <p class="text-muted fs-5">Il y a <span id="temps-ecoule">--</span></p>
-                        <a href="{% url 'graph_hum' %}" class="btn btn-outline-primary btn-lg px-4">Voir graphe humidité</a>
-                    </div>
+        <div class="col-md-6">
+            <div class="card shadow text-center">
+                <div class="card-header bg-primary text-white">Humidité</div>
+                <div class="card-body">
+                    <h1>{{ dernier.hum|default:"--" }} %</h1>
+                    <p class="text-muted">Il y a {{ dernier.dt|timesince }}</p>
+                    <a href="{% url 'graph_hum' %}" class="btn btn-outline-primary btn-sm">
+    📊 Voir graphe humidité
+</a>
+
                 </div>
             </div>
         </div>
-        <div class="row mt-5">
+    </div>
+
+    <!-- INCIDENT -->
+<div class="row mt-5">
     <div class="col-md-6">
         <div class="card border-warning">
-            <div class="card-header bg-warning text-dark">
-                <h5>État du système</h5>
+            <div class="card-header bg-warning">
+                🚨 État du système
             </div>
             <div class="card-body">
-                <h3>{% if incident_actif %}🔴 Incident en cours{% else %}🟢 Aucun incident{% endif %}</h3>
-                <p>Compteur d’alertes : <strong>{{ incident_actif.compteur_alerte|default:0 }}</strong></p>
-                {% if incident_actif and incident_actif.est_grave %}
-                    <p class="text-danger fw-bold">⚠️ Incident > 10 heures !</p>
+
+                {% if incident_actif %}
+                    <h5 class="text-danger">Incident en cours</h5>
+                    <p>Compteur alertes : {{ incident_actif.compteur_alerte }}</p>
+
+                    <!-- QUI EST NOTIFIÉ -->
+                    <ul class="mb-3">
+                        {% if incident_actif.compteur_alerte >= 1 %}
+                            <li>📢 Opérateur niveau 1 notifié</li>
+                        {% endif %}
+                        {% if incident_actif.compteur_alerte >= 4 %}
+                            <li>📢 Opérateur niveau 2 notifié</li>
+                        {% endif %}
+                        {% if incident_actif.compteur_alerte >= 7 %}
+                            <li>📢 Opérateur niveau 3 notifié</li>
+                        {% endif %}
+                    </ul>
+
+                    <!-- CAS UTILISATEUR CONNECTÉ -->
+                    {% if user.is_authenticated and accuse %}
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="accuse_id" value="{{ accuse.id }}">
+
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" checked disabled>
+                                <label class="form-check-label">
+                                    Accusé de réception
+                                </label>
+                            </div>
+
+                            <textarea name="commentaire"
+                                      class="form-control mb-3"
+                                      placeholder="Votre commentaire...">{{ accuse.commentaire }}</textarea>
+
+                            <button class="btn btn-success btn-sm">
+                                💾 Enregistrer
+                            </button>
+                        </form>
+
+                    <!-- CAS NON CONNECTÉ -->
+                    {% elif not user.is_authenticated %}
+                        <p class="text-muted">
+                            🔐 Connectez-vous pour accuser réception
+                        </p>
+                    {% endif %}
+
+                {% else %}
+                    <h5 class="text-success">🟢 Aucun incident</h5>
                 {% endif %}
+
             </div>
         </div>
     </div>
 </div>
 
-        <div class="text-center mt-4">
-            <small class="text-muted">Mise à jour automatique toutes les 20 minutes</small>
+
+    <!-- ARCHIVE -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <a href="{% url 'archive_incidents' %}" class="btn btn-outline-secondary">
+                📂 Voir archive des incidents
+            </a>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{% static 'js/dashboard.js' %}"></script>
+</div>
+
+<!-- TEST API -->
+<div class="row mt-5"> <div class="col-md-6 mx-auto"> <div class="card shadow-lg">
+    <div class="card-header bg-secondary text-white text-center"> <h4>Test API (Envoi manuel)</h4> </div>
+    <div class="card-body"> <form id="testForm"> {% csrf_token %} <label>Température (°C)</label>
+        <input type="number" step="0.1" id="tempInput" class="form-control mb-3" required>
+        <label>Humidité (%)</label>
+        <input type="number" step="0.1" id="humInput" class="form-control mb-3" required>
+        <button class="btn btn-primary w-100">Envoyer</button>
+    </form> <div id="result" class="mt-3"></div> </div>
+</div> </div> </div> </div>
+<script>
+    document.getElementById("testForm").onsubmit = async (e) => { e.preventDefault();
+ const temp = parseFloat(document.getElementById("tempInput").value);
+  const hum = parseFloat(document.getElementById("humInput").value);
+ const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value; const res = document.getElementById("result");
+  res.innerHTML = "Envoi en cours...";
+   const response = await fetch("/api/dht11/", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRFToken": csrf }, body: JSON.stringify({ temp, hum }) });
+   const data = await response.json();
+    if (response.ok) { res.innerHTML = "✅ Mesure enregistrée"; setTimeout(() => location.reload(), 1500);
+     } else { res.innerHTML = "❌ Erreur : " + JSON.stringify(data); } };
+</script>
+
 </body>
 </html>

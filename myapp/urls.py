@@ -1,20 +1,34 @@
 from django.urls import path
 from . import views
-from .api import Dlist, Dhtviews  # <-- ajoute cette ligne
+from .api import Dhtviews
+from django.contrib.auth import views as auth_views
 
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
-    path('temperature/', views.graph_temp, name='graph_temp'),
-    path('humidity/', views.graph_hum, name='graph_hum'),
-    path('latest_json/', views.latest_json, name='latest_json'),
-    path('api/post', views.api_post, name='api_post'),
 
-    # API DRF pour les graphiques
-    path('api/dlist/', Dlist, name='dlist'),
-    path('api/dht11/', Dhtviews.as_view()),
-     #incidents
-path('incidents/', views.archive_incidents, name='archive_incidents'),
-path('incident/<int:pk>/', views.detail_incident, name='detail_incident'),
+    path('api/dht11/', Dhtviews.as_view(), name='api_dht11'),
 
+    path('incidents/', views.archive_incidents, name='archive_incidents'),
+    path('incident/<int:pk>/', views.detail_incident, name='detail_incident'),
+
+    path('graph/temp/', views.graph_temp, name='graph_temp'),
+    path('graph/hum/', views.graph_hum, name='graph_hum'),
+
+    # Auth
+    path("login/", auth_views.LoginView.as_view(template_name="login.html"), name="login"),
+     path(
+    "logout/",
+    auth_views.LogoutView.as_view(next_page="dashboard"),
+    name="logout"
+),
+    # Opérateur / accusés
+    path("mes-alertes/", views.mes_alertes, name="mes_alertes"),
+    path("accuse/<int:pk>/", views.accuser_reception, name="accuser_reception"),
+
+    # profile (login redirect)
+    path("profile/", views.profile, name="profile"),
+
+    # API pour récupérer la liste des mesures (JSON)
+    path('api/dlist/', views.dht11_list, name='api_dlist'),
 
 ]
